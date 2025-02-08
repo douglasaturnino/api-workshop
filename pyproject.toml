@@ -7,12 +7,48 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.8",
     "httpx>=0.28.1",
+    "pydantic>=2.10.6",
     "pytest>=8.3.4",
     "taskipy>=1.14.1",
     "uvicorn>=0.34.0",
 ]
 [tool.taskipy.tasks]
 
-run = "uvicorn main:app --reload"
-test = "pytest -v testes.py"
+run = "uvicorn app.main:app --reload"
+test = "pytest -v"
 kill = "kill -9 $(lsof -t -i:8000)"
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+# Same as Black.
+line-length = 79
+indent-width = 4
