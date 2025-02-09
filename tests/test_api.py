@@ -38,3 +38,34 @@ def test_pega_um_produto_json():
         "descricao": "Um smartphone de última geração",
         "preco": 1500.00,
     }
+
+
+def test_adicionar_produto():
+    response = client.post(
+        "/produtos",
+        json={
+            "id": 5,
+            "nome": "Notebook",
+            "descricao": "Um notebook de última geração",
+            "preco": 2500.00,
+        },
+    )
+    assert response.status_code == 200
+
+
+def test_adicionar_produto_json():
+    response = client.post(
+        "/produtos",
+        json={
+            "id": 5,
+            "nome": "Notebook",
+            "descricao": "Um notebook de última geração",
+            "preco": 2500.00,
+        },
+    )
+    assert response.json() == {
+        "id": 5,
+        "nome": "Notebook",
+        "descricao": "Um notebook de última geração",
+        "preco": 2500.00,
+    }

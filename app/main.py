@@ -20,3 +20,8 @@ def listar_produtos():
 @app.get("/produtos/{id}", response_model=ProdutosSchema)
 def buscar_produto(id: int):
     return produtos.buscar_produto(id)
+
+
+@app.post("/produtos", response_model=ProdutosSchema)
+def adicionar_produto(produto: ProdutosSchema):
+    return produtos.adicionar_produto(produto.model_dump())
