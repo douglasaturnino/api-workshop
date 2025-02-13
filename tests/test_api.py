@@ -1,13 +1,22 @@
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
+from app.config import Base
 from app.main import app
 from app.schema import ProdutosSchema
 
+# Configuração do banco de dados para os testes (forçar a variável de ambiente para 'test')
+os.environ["ENV"] = "test"
 
-@pytest.fixture
-def test_client():
+
+# Fixture para o cliente de teste
+@pytest.fixture(scope="module")
+def test_client(db_session):
     """
     Cria uma instância de TestClient que pode ser usada em testes.
     O TestClient é utilizado para simular requisições à API FastAPI.
@@ -16,38 +25,71 @@ def test_client():
         yield client
 
 
-@pytest.fixture
-def produto_id(test_client):
+# Fixture para configurar o banco de dados em memória para os testes
+@pytest.fixture(scope="module")
+def db_session():
     """
-    Fixture que cria um produto na API e retorna o ID desse produto.
+    Fixture que configura e retorna uma sessão de banco de dados para os testes.
+    Utiliza um banco SQLite em memória para garantir testes isolados.
+    """
+    # A URL do banco de dados será automaticamente configurada para o banco SQLite em memória
+    DATABASE_URL = "sqlite:///database.db"
+
+    # Criação do engine e da sessão
+    engine = create_engine(
+        DATABASE_URL, connect_args={"check_same_thread": False}
+    )
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    # Criação das tabelas
+    Base.metadata.create_all(bind=engine)
+
+    # Iniciando a sessão
+    session = SessionLocal()
+
+    yield session  # Fornece a sessão para os testes
+
+    # Limpeza após os testes
+    session.close()
+    Base.metadata.drop_all(bind=engine)
+
+
+# Fixture que cria um produto e retorna o ID para ser utilizado em outros testes
+@pytest.fixture(scope="module")
+def produto_id(db_session, test_client):
+    """
+    Cria um produto na API e retorna o ID desse produto.
     Utilizado para testar operações que necessitam de um produto existente.
     """
     produto_data = {
+        "id": 1,
         "nome": "Produto Teste",
         "descricao": "Descrição Teste",
         "preco": 19.99,
     }
+    # Criando o produto no banco diretamente (simulando a API)
     response = test_client.post("/produtos", json=produto_data)
     assert response.status_code == 201
     return response.json()["id"]
 
 
-def test_listar_produtos(test_client):
+# Teste de listagem de produtos
+def test_listar_produtos(db_session, test_client):
     """
     Testa se a rota GET '/produtos' retorna uma lista e um status code 200 (sucesso).
-    Verifica se a resposta é uma lista, indicando uma listagem bem-sucedida dos produtos.
     """
     response = test_client.get("/produtos")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
 
-def test_inserir_produto(test_client):
+# Teste de inserção de produto
+def test_inserir_produto(db_session, test_client):
     """
     Testa a criação de um produto através da rota POST '/produtos'.
-    Verifica se o produto é criado com sucesso e se os dados retornados são corretos.
     """
     produto_data = {
+        "id": 3,
         "nome": "Produto Teste",
         "descricao": "Descrição Teste",
         "preco": 19.99,
@@ -60,10 +102,10 @@ def test_inserir_produto(test_client):
     assert data["preco"] == produto_data["preco"]
 
 
+# Teste de obtenção de um produto
 def test_obter_produto(test_client, produto_id):
     """
-    Testa a obtenção de um produto específico através da rota GET '/produtos/{produto_id}'.
-    Verifica se o produto obtido corresponde ao produto criado pela fixture 'produto_id'.
+    Testa a obtenção de um produto específico.
     """
     response = test_client.get(f"/produtos/{produto_id}")
     assert response.status_code == 200
@@ -72,10 +114,10 @@ def test_obter_produto(test_client, produto_id):
     assert "nome" in data
 
 
+# Teste de atualização de um produto
 def test_atualizar_produto(test_client, produto_id):
     """
-    Testa a atualização de um produto existente pela rota PUT '/produtos/{produto_id}'.
-    Verifica se a atualização é bem-sucedida e se os dados atualizados estão corretos.
+    Testa a atualização de um produto existente.
     """
     novo_dado = {
         "nome": "Produto Atualizado",
@@ -88,10 +130,10 @@ def test_atualizar_produto(test_client, produto_id):
     assert data["nome"] == novo_dado["nome"]
 
 
+# Teste de remoção de um produto
 def test_remover_produto(test_client, produto_id):
     """
-    Testa a remoção de um produto pela rota DELETE '/produtos/{produto_id}'.
-    Verifica se o produto é removido com sucesso e se o mesmo não é mais encontrado após a remoção.
+    Testa a remoção de um produto.
     """
     response = test_client.delete(f"/produtos/{produto_id}")
     assert response.status_code == 204
@@ -99,6 +141,7 @@ def test_remover_produto(test_client, produto_id):
     assert response.status_code == 404
 
 
+# Teste de modelo de produto válido
 def test_modelo_produto_valido():
     produto = ProdutosSchema(
         nome="Teste", descricao="Descrição Teste", preco=10.0
@@ -107,6 +150,7 @@ def test_modelo_produto_valido():
     assert produto.preco == 10.0
 
 
+# Teste de modelo de produto inválido
 def test_modelo_produto_invalido():
     with pytest.raises(ValidationError):
-        ProdutosSchema(titulo="", preco=-10.0)
+        ProdutosSchema(nome="", preco=-10.0)

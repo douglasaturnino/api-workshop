@@ -12,8 +12,12 @@ db_name = os.getenv("POSTGRES_DB")
 db_host = os.getenv("DB_HOST")
 db_port = os.getenv("DB_PORT")
 
-DATABESE_URL = f"postgresql://{db_user}:{db_password}@{db_host}/{db_name}"
-engine = create_engine(DATABESE_URL)
+if os.getenv("ENV") == "test":
+    DATABASE_URL = "sqlite:///database.db"
+else:
+    DATABASE_URL = f"postgresql://{db_user}:{db_password}@{db_host}/{db_name}"
+
+engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
